@@ -147,6 +147,7 @@ class train(Base):
 
             # Validation
             self.mlp.eval()
+            self.diff.eval()
             with torch.no_grad():
                 validation_loss = 0
                 num_batches = 0
