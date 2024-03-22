@@ -72,7 +72,7 @@ class DiffusionSequential(nn.Sequential):
         return input
 
 
-class ConditionalClassifier_ResNet18(nn.Module):
+class ConditionalClassifier(nn.Module):
 
     def __init__(
         self,

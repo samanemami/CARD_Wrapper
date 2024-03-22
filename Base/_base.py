@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from Libs._logging import FileHandler, StreamHandler
 from sklearn.model_selection import train_test_split
 from ._deterministics import MLPRegressor, MLPClassifier
-from ._diffusion import ConditionalRegressor, ConditionalClassifier_ResNet18
+from ._diffusion import ConditionalRegressor, ConditionalClassifier_ResNet18, ConditionalClassifier
 
 
 class Base(Params):
@@ -105,13 +105,13 @@ class Base(Params):
 
     def _diff(self, X, y):
 
-        ResNet = True
+        ResNet = False
 
         if self.config.classification:
 
             if not ResNet:
 
-                diff_model = ConditionalClassifier_ResNet18(
+                diff_model = ConditionalClassifier(
                     n_steps=self.config.n_steps,
                     x_dim=X.shape[1],
                     y_dim=len(torch.unique(y)),
