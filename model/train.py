@@ -204,7 +204,7 @@ class train(Base):
                 else:
                     early_stop_counter += 1
 
-                if early_stop_counter > self.config.patience_mlp:
+                if early_stop_counter > self.config.patience_diff:
                     self.log_sh.info(f"Early stopping at epoch {epoch}.")
                     self.log_fh.info(f"Early stopping at epoch {epoch}.")
                     break
