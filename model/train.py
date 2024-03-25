@@ -1,9 +1,11 @@
 import torch
 import numpy as np
+import pandas as pd
 from Base import Base
 from tqdm import trange
 from Base._utils import *
 from torch.optim import Adam
+from time import process_time
 
 
 class train(Base):
@@ -18,6 +20,7 @@ class train(Base):
     def fit(self, X, y):
 
         self._check_params()
+        self.training_time = {"mlp": np.float64, "diffusion": np.float64}
 
         clf = True if self.config.classification else False
         X = self._check_array(X, False)
@@ -34,13 +37,19 @@ class train(Base):
 
         best_valid_loss = np.inf
         counter = 0
+        self._mlp_loss_val = []
+        self._mlp_loss_train = []
         self.mlp.train()
         aux_optimizer = Adam(self.mlp.parameters(), lr=self.config.eta_mlp)
 
         self.log_sh.info(f"----Pre-training Feed Forward model----")
         self.log_fh.info(f"----Pre-training Feed Forward model----")
+        self._gradients = {}
+        t0 = process_time()
         for epoch in trange(self.config.epochs_mlp, leave=True):
             # Training
+            train_batch = 0
+            train_loss = 0
             for data, target in train_loader:
                 data, target = data.to(self.device), target.to(self.device)
                 target = target.squeeze()
@@ -49,9 +58,13 @@ class train(Base):
                 aux_cost = aux_cost_fn(y_pred, target)
                 aux_cost.backward()
                 aux_optimizer.step()
+
                 self.log_sh.info(f"\t Training loss - Epoch {epoch}: {aux_cost.item()}")
                 self.log_fh.info(f"\t Training loss - Epoch {epoch}: {aux_cost.item()}")
+                train_batch += 1
+                train_loss += aux_cost.item()
 
+            self._mlp_loss_train.append(train_loss / train_batch)
             self.mlp.eval()
             with torch.no_grad():
                 num_batches = 0
@@ -69,7 +82,8 @@ class train(Base):
                         f"\t Validation loss - Epoch {epoch}: {aux_cost.item()}"
                     )
                     num_batches += 1
-            valid_loss /= len(validation_loader)
+            valid_loss /= num_batches
+            self._mlp_loss_val.append(valid_loss)
 
             # Applying Early stooping
             if self.config.patience_mlp:
@@ -83,6 +97,7 @@ class train(Base):
                     self.log_sh.info(f"Early stopping at epoch {epoch}.")
                     self.log_fh.info(f"Early stopping at epoch {epoch}.")
                     break
+        self.training_time["mlp"] = process_time() - t0
 
         diff_optimizer = Adam(self.diff.parameters(), lr=self.config.eta_diff)
         diff_bar = trange(self.config.epochs_diff, leave=True)
@@ -92,10 +107,12 @@ class train(Base):
 
         self.log_sh.info(f"----diffusion process----")
         self.log_fh.info(f"----diffusion process----")
-        self.diff_loss_train = []
-        self.diff_loss_val = []
+        self._diff_loss_train = []
+        self._diff_loss_val = []
+        t0 = process_time()
         for epoch in diff_bar:
             training_loss = 0
+            train_batch = 0
             for data, target in train_loader:
                 data, target = data.to(self.device), target.to(self.device)
                 batch_size = data.shape[0]
@@ -133,6 +150,13 @@ class train(Base):
                 loss.backward()
                 diff_optimizer.step()
 
+                # Save gradients
+                for name, param in self.diff.named_parameters():
+                    if param.grad is not None:
+                        if name not in self._gradients:
+                            self._gradients[name] = []
+                        self._gradients[name].append(param.grad.norm().item())
+
                 self.log_sh.info(f"\t Training loss - Epoch {epoch}: {loss.item()}")
                 self.log_fh.info(f"\t Training loss - Epoch {epoch}: {loss.item()}")
 
@@ -142,8 +166,8 @@ class train(Base):
                 aux_optimizer.step()
 
                 diff_bar.set_description(f"Loss: {loss.item()}", refresh=True)
-            training_loss /= len(train_loader)
-            self.diff_loss_train.append(training_loss)
+                train_batch += 1
+            self._diff_loss_train.append(training_loss / train_batch)
 
             # Validation
             self.mlp.eval()
@@ -194,7 +218,7 @@ class train(Base):
                     )
                     num_batches += 1
                 validation_loss /= num_batches
-                self.diff_loss_val.append(validation_loss)
+                self._diff_loss_val.append(validation_loss)
 
             # Applying Early stooping
             if self.config.patience_diff:
@@ -208,6 +232,7 @@ class train(Base):
                     self.log_sh.info(f"Early stopping at epoch {epoch}.")
                     self.log_fh.info(f"Early stopping at epoch {epoch}.")
                     break
+        self.training_time["diffusion"] = process_time() - t0
 
     def predict(self, X):
         X = self._check_array(X)
@@ -228,9 +253,22 @@ class train(Base):
         self.__pred_uct = pred_dict["pred_uct"].detach().numpy().squeeze()
         self._save_records()
         return self.__pred
+    
+    def pred_uct(self):
+        return self.__pred_uct
 
     def _save_records(self):
-        np.savetxt("training_loss.csv", self.diff_loss_train, delimiter=",")
-        np.savetxt("validation_loss.csv", self.diff_loss_val, delimiter=",")
+        np.savetxt("training_loss.csv", self._diff_loss_train, delimiter=",")
+        np.savetxt("validation_loss.csv", self._diff_loss_val, delimiter=",")
+        np.savetxt("training_loss_mlp.csv", self._mlp_loss_train, delimiter=",")
+        np.savetxt("validation_loss_mlp.csv", self._mlp_loss_val, delimiter=",")
+        np.savetxt(
+            "gradients_magnitude.csv", pd.DataFrame(self._gradients), delimiter=","
+        )
+        pd.Series(self.training_time).to_csv(
+            "training_time.csv", header=["time (seconds)"]
+        )
         np.savetxt("prediction.csv", self.__pred, delimiter=",")
         np.savetxt("uncertainty.csv", self.__pred_uct, delimiter=",")
+        with open("config.txt", "w") as conf:
+            conf.write(str(self.get_params()["config"]))
