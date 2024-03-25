@@ -60,7 +60,7 @@ class MLPClassifier(BaseNetwork):
     ):
         super(MLPClassifier, self).__init__(input_dim, output_dim, dropout_rate)
 
-        n_hidden = [50, 50]
+        n_hidden = [100, 50]
         layers = []
         layer_sizes = [input_dim] + n_hidden
         for idx in range(1, len(layer_sizes)):
