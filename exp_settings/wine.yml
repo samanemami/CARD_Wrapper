@@ -1,0 +1,19 @@
+general:
+  seed: 111
+  verbose: False
+  batch_size: 32
+  shuffle: True
+  n_steps: 100
+  n_z_samples: 100
+  classification: False
+
+mlp:
+  epochs: 300
+  eta: 1e-3
+  dropout: 2e-1
+  patience: 50
+
+diff:
+  epochs: 5000
+  eta: 1e-3
+  patience: 100
