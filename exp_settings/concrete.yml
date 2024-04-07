@@ -1,6 +1,6 @@
 general:
   seed: 111
-  verbose: 1
+  verbose: False
   batch_size: 32
   shuffle: True
   n_steps: 100

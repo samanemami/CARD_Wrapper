@@ -1,7 +1,6 @@
 # %%
 import warnings
 from model.train import train
-import matplotlib.pylab as plt
 from Libs.config import get_config
 from dataset_.toy_dataset import *
 from dataset_.uci_dataset import *
@@ -38,6 +37,7 @@ def run(dataset):
         print("RMSE", root_mean_squared_error(y_test, pred))
     except:
         print(accuracy_score(y_test, pred))
+
 
 if __name__ == "__main__":
     run(concrete)
