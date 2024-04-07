@@ -16,6 +16,4 @@ mlp:
 diff:
   epochs: 5000
   eta: 1e-3
-  prune_rate: 0.9
   patience: 100
-  sparsity: "dynamic"

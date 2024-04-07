@@ -40,8 +40,6 @@ def extract_config_values(yaml_file):
             epochs_diff=int(config["diff"]["epochs"]),
             eta_diff=float(config["diff"]["eta"]),
             patience_diff=int_or_bool(config["diff"]["patience"]),
-            prune_rate=float(config["diff"]["prune_rate"]),
-            sparsity=str(config["diff"]["sparsity"]),
         )
     }
 
